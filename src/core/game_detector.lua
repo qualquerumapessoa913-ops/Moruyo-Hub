@@ -1,6 +1,6 @@
 -- Mapeamento de PlaceId para nome do jogo
 local Games = {
-    [840821278] = "PrisonLife",   -- Prison Life
+    [155615604] = "PrisonLife",   -- Prison Life
     -- [ID_DO_JAILBIRD] = "Jailbird",
     -- [ID_DO_ARSENAL] = "Arsenal",
     -- [ID_DO_MM2] = "MM2",

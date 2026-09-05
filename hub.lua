@@ -44,7 +44,7 @@ end
 -- 3. GAME DETECTOR
 -- ============================================================
 local Games = {
-    [840821278] = "PrisonLife",
+    [155615604] = "PrisonLife",
 }
 
 local function getCurrentGame()
