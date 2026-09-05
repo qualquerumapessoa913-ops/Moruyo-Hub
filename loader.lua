@@ -1,13 +1,17 @@
 -- ============================================================
 -- MORUYO HUB v9.0 – LOADER (EXECUTAR NO EXECUTOR)
 -- ============================================================
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
 
--- Substitua pelo link RAW correto
-local main = loadstring(game:HttpGet("https://raw.githubusercontent.com/qualquerumapessoa913-ops/MoruyoHub/main/src/main.lua"))()
-if main then
-    main()
+-- Carrega e executa o hub
+local success, err = pcall(function()
+    local main = loadstring(game:HttpGet("https://raw.githubusercontent.com/qualquerumapessoa913-ops/Moruyo-Hub/refs/heads/Moon-Angel/src/main.lua"))()
+    if main then
+        main()  -- Só chama UMA vez
+    end
+end)
+
+if not success then
+    warn("❌ Falha ao carregar o hub: " .. tostring(err))
 else
-    warn("Falha ao carregar o hub!")
+    print("✅ Moruyo Hub carregado com sucesso!")
 end
