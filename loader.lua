@@ -1,17 +1,14 @@
 -- ============================================================
--- MORUYO HUB v9.0 – LOADER (EXECUTAR NO EXECUTOR)
+-- MORUYO HUB v9.0 – LOADER (SCRIPT ÚNICO)
 -- ============================================================
 
--- Carrega e executa o hub
 local success, err = pcall(function()
-    local main = loadstring(game:HttpGet("https://raw.githubusercontent.com/qualquerumapessoa913-ops/Moruyo-Hub/refs/heads/Moon-Angel/src/main.lua"))()
-    if main then
-        main()  -- Só chama UMA vez
+    local hub = loadstring(game:HttpGet("https://raw.githubusercontent.com/qualquerumapessoa913-ops/Moruyo-Hub/refs/heads/Moon-Angel/hub.lua"))()
+    if hub then
+        print("✅ Moruyo Hub carregado com sucesso!")
     end
 end)
 
 if not success then
     warn("❌ Falha ao carregar o hub: " .. tostring(err))
-else
-    print("✅ Moruyo Hub carregado com sucesso!")
 end
