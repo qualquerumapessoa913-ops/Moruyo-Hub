@@ -1,10 +1,9 @@
 -- ============================================================
--- MORUYO HUB v10.0 – UPGRADE 1000%
--- Estilo Hawk Hub | Prison Life Edition
+-- MORUYO HUB v10.1 – CORREÇÕES E MELHORIAS
 -- ============================================================
 
 -- ============================================================
--- 1. SERVIÇOS E VARIÁVEIS GLOBAIS
+-- 1. SERVIÇOS E VARIÁVEIS
 -- ============================================================
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -15,7 +14,6 @@ local VirtualInput = game:GetService("VirtualInputManager")
 local Camera = workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
 
--- Personagem e referências (atualizadas automaticamente)
 local Character, Humanoid, hrp
 
 local function updateCharacter()
@@ -27,12 +25,15 @@ updateCharacter()
 LocalPlayer.CharacterAdded:Connect(updateCharacter)
 
 -- ============================================================
--- 2. FUNÇÕES AUXILIARES (SEGURAS)
+-- 2. FUNÇÕES AUXILIARES
 -- ============================================================
 local function safeFindChild(parent, name)
     if not parent then return nil end
     return parent:FindFirstChild(name)
 end
+
+local aimPart = "Head" -- Padrão
+local aimPartOptions = {"Head", "HumanoidRootPart", "Torso", "Leg"}
 
 local function getClosestEnemy()
     if not hrp then return nil end
@@ -43,9 +44,18 @@ local function getClosestEnemy()
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and player.Team and player.Team ~= myTeam then
-            local head = safeFindChild(player.Character, "Head")
-            if head then
-                local dist = (head.Position - hrp.Position).Magnitude
+            local part
+            if aimPart == "Head" then
+                part = safeFindChild(player.Character, "Head")
+            elseif aimPart == "HumanoidRootPart" then
+                part = safeFindChild(player.Character, "HumanoidRootPart")
+            elseif aimPart == "Torso" then
+                part = safeFindChild(player.Character, "Torso")
+            elseif aimPart == "Leg" then
+                part = safeFindChild(player.Character, "LeftLeg") or safeFindChild(player.Character, "RightLeg")
+            end
+            if part then
+                local dist = (part.Position - hrp.Position).Magnitude
                 if dist < closestDist then
                     closestDist = dist
                     closest = player
@@ -72,7 +82,7 @@ local function log(msg)
 end
 
 -- ============================================================
--- 3. SPEED (COM SLIDER VISUAL NA GUI)
+-- 3. SPEED
 -- ============================================================
 local speedOn = false
 local speedValue = 50
@@ -89,12 +99,6 @@ local function toggleSpeed(state)
     log("Speed " .. (speedOn and "ON (" .. speedValue .. ")" or "OFF"))
 end
 
-local function setSpeed(value)
-    speedValue = value
-    if speedOn then applySpeed(speedValue) end
-end
-
--- Loop de manutenção
 coroutine.wrap(function()
     while true do
         if speedOn then applySpeed(speedValue) end
@@ -103,7 +107,7 @@ coroutine.wrap(function()
 end)()
 
 -- ============================================================
--- 4. NO CLIP (FORÇA BRUTA)
+-- 4. NO CLIP (CORRIGIDO)
 -- ============================================================
 local noClipOn = false
 
@@ -113,11 +117,21 @@ local function toggleNoClip(state)
     log("No Clip " .. (noClipOn and "ON" or "OFF"))
 end
 
+-- Força bruta em múltiplos eventos
 RunService.RenderStepped:Connect(function()
     if noClipOn and hrp then
         hrp.CanCollide = false
     end
 end)
+
+coroutine.wrap(function()
+    while true do
+        if noClipOn and hrp then
+            hrp.CanCollide = false
+        end
+        task.wait(0.05)
+    end
+end)()
 
 -- ============================================================
 -- 5. INFINITE JUMP
@@ -137,30 +151,42 @@ UserInputService.InputBegan:Connect(function(input, gp)
 end)
 
 -- ============================================================
--- 6. FLY (CONTROLE SUAVE)
+-- 6. FLY (COM BodyVelocity PARA SUAVIZAR)
 -- ============================================================
 local flyOn = false
 local flySpeed = 50
 local flyVelocity = Vector3.new(0, 0, 0)
+local bodyVelocity = nil
+
+local function createBodyVelocity()
+    if bodyVelocity then bodyVelocity:Destroy() end
+    bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
+    bodyVelocity.Parent = hrp
+end
 
 local function toggleFly(state)
     flyOn = state
-    if not flyOn and Humanoid then
-        Humanoid.PlatformStand = false
+    if not flyOn then
+        if Humanoid then Humanoid.PlatformStand = false end
+        if bodyVelocity then
+            bodyVelocity:Destroy()
+            bodyVelocity = nil
+        end
         flyVelocity = Vector3.new(0, 0, 0)
+    else
+        if hrp then
+            Humanoid.PlatformStand = true
+            createBodyVelocity()
+        end
     end
     log("Fly " .. (flyOn and "ON" or "OFF"))
 end
 
-local function setFlySpeed(value)
-    flySpeed = value
-end
-
 coroutine.wrap(function()
     while true do
-        if flyOn and hrp and Humanoid then
-            Humanoid.PlatformStand = true
-            hrp.Velocity = flyVelocity
+        if flyOn and hrp and bodyVelocity then
+            bodyVelocity.Velocity = flyVelocity
         end
         task.wait()
     end
@@ -178,6 +204,9 @@ UserInputService.InputBegan:Connect(function(input, gp)
     elseif key == "Space" then flyVelocity = Vector3.new(0, speed, 0)
     elseif key == "LeftShift" then flyVelocity = Vector3.new(0, -speed, 0)
     end
+    if bodyVelocity then
+        bodyVelocity.Velocity = flyVelocity
+    end
 end)
 
 UserInputService.InputEnded:Connect(function(input, gp)
@@ -186,6 +215,9 @@ UserInputService.InputEnded:Connect(function(input, gp)
     local key = input.KeyCode.Name
     if key == "W" or key == "S" or key == "A" or key == "D" or key == "Space" or key == "LeftShift" then
         flyVelocity = Vector3.new(0, 0, 0)
+        if bodyVelocity then
+            bodyVelocity.Velocity = flyVelocity
+        end
     end
 end)
 
@@ -207,10 +239,10 @@ local function toggleFullBright(state)
 end
 
 -- ============================================================
--- 8. AIMBOT (COM SMOOTH E MODOS)
+-- 8. AIMBOT (COM PARTE SELECIONÁVEL)
 -- ============================================================
 local aimbotOn = false
-local aimbotMode = "Always" -- "Always" ou "MouseButton"
+local aimbotMode = "Always"
 local rightMousePressed = false
 
 local function smoothAimbot(targetPos)
@@ -230,6 +262,11 @@ local function setAimbotMode(mode)
     log("Aimbot Mode: " .. aimbotMode)
 end
 
+local function setAimPart(part)
+    aimPart = part
+    log("Aim Part: " .. aimPart)
+end
+
 coroutine.wrap(function()
     while true do
         if aimbotOn then
@@ -237,9 +274,18 @@ coroutine.wrap(function()
             if shouldAim then
                 local target = getClosestEnemy()
                 if target and target.Character then
-                    local head = safeFindChild(target.Character, "Head")
-                    if head then
-                        smoothAimbot(head.Position)
+                    local targetPart
+                    if aimPart == "Head" then
+                        targetPart = safeFindChild(target.Character, "Head")
+                    elseif aimPart == "HumanoidRootPart" then
+                        targetPart = safeFindChild(target.Character, "HumanoidRootPart")
+                    elseif aimPart == "Torso" then
+                        targetPart = safeFindChild(target.Character, "Torso")
+                    elseif aimPart == "Leg" then
+                        targetPart = safeFindChild(target.Character, "LeftLeg") or safeFindChild(target.Character, "RightLeg")
+                    end
+                    if targetPart then
+                        smoothAimbot(targetPart.Position)
                     end
                 end
             end
@@ -269,10 +315,13 @@ local silentAimOn = false
 local function doSilentAim()
     local target = getClosestEnemy()
     if target and target.Character then
-        local head = safeFindChild(target.Character, "Head")
-        if head then
-            clickMouse()
+        local part
+        if aimPart == "Head" then part = safeFindChild(target.Character, "Head")
+        elseif aimPart == "HumanoidRootPart" then part = safeFindChild(target.Character, "HumanoidRootPart")
+        elseif aimPart == "Torso" then part = safeFindChild(target.Character, "Torso")
+        elseif aimPart == "Leg" then part = safeFindChild(target.Character, "LeftLeg") or safeFindChild(target.Character, "RightLeg")
         end
+        if part then clickMouse() end
     end
 end
 
@@ -289,17 +338,20 @@ UserInputService.InputBegan:Connect(function(input, gp)
 end)
 
 -- ============================================================
--- 10. TRIGGER (TELEGUIADO)
+-- 10. TRIGGER
 -- ============================================================
 local triggerOn = false
 
 local function triggerShoot()
     local target = getClosestEnemy()
     if target and target.Character then
-        local head = safeFindChild(target.Character, "Head")
-        if head then
-            clickMouse()
+        local part
+        if aimPart == "Head" then part = safeFindChild(target.Character, "Head")
+        elseif aimPart == "HumanoidRootPart" then part = safeFindChild(target.Character, "HumanoidRootPart")
+        elseif aimPart == "Torso" then part = safeFindChild(target.Character, "Torso")
+        elseif aimPart == "Leg" then part = safeFindChild(target.Character, "LeftLeg") or safeFindChild(target.Character, "RightLeg")
         end
+        if part then clickMouse() end
     end
 end
 
@@ -318,11 +370,10 @@ coroutine.wrap(function()
 end)()
 
 -- ============================================================
--- 11. ESP (COM HIGHLIGHT E BILLBOARD)
+-- 11. ESP (ATUALIZAÇÃO AUTOMÁTICA + LOOP FORÇADO)
 -- ============================================================
 local espOn = false
 local espHighlights = {}
-local lastESPUpdate = 0
 
 local function addESP(player)
     if not player.Character then return end
@@ -382,7 +433,11 @@ end
 local function updateESP()
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
-            if espOn then addESP(player) else removeESP(player) end
+            if espOn then
+                addESP(player)
+            else
+                removeESP(player)
+            end
         end
     end
 end
@@ -393,15 +448,17 @@ local function toggleESP(state)
     log("ESP " .. (espOn and "ON" or "OFF"))
 end
 
-RunService.Heartbeat:Connect(function(deltaTime)
-    lastESPUpdate = lastESPUpdate + deltaTime
-    if lastESPUpdate >= 1 then
-        lastESPUpdate = 0
-        if espOn then updateESP() end
+-- Loop de atualização forçada (a cada 0.5s para capturar spawns)
+coroutine.wrap(function()
+    while true do
+        if espOn then
+            updateESP()
+        end
+        task.wait(0.5)
     end
-end)
+end)()
 
--- Detectar novos jogadores
+-- Eventos de CharacterAdded para novos jogadores
 local function setupPlayer(player)
     if player == LocalPlayer then return end
     player.CharacterAdded:Connect(function()
@@ -413,13 +470,15 @@ end
 for _, player in ipairs(Players:GetPlayers()) do setupPlayer(player) end
 Players.PlayerAdded:Connect(setupPlayer)
 
+-- Também atualiza quando o time muda (se possível)
+-- (não temos evento de mudança de time, mas o loop forçado já resolve)
+
 -- ============================================================
--- 12. GUI ESTILO HAWK HUB (COM SEÇÕES E ELEMENTOS)
+-- 12. GUI (ESTILO HAWK HUB – LAYOUT CORRIGIDO)
 -- ============================================================
 local function createSection(parent, title, yPos, height)
     local frame = Instance.new("Frame")
     frame.Size = UDim2.new(0.9, 0, 0, height or 80)
-    frame.Position = UDim2.new(0.05, 0, 0, yPos)
     frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
     frame.BackgroundTransparency = 0.2
     frame.Parent = parent
@@ -443,7 +502,7 @@ end
 
 local function createSwitch(parent, label, toggleFunc, xPos, yPos)
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0.45, 0, 0, 32)
+    frame.Size = UDim2.new(0.42, 0, 0, 32)
     frame.Position = UDim2.new(xPos or 0.05, 0, yPos or 0.5, 0)
     frame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
     frame.BackgroundTransparency = 0.2
@@ -490,7 +549,7 @@ end
 
 local function createModeSelector(parent, label, options, current, callback, yPos)
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0.9, 0, 0, 30)
+    frame.Size = UDim2.new(0.9, 0, 0, 28)
     frame.Position = UDim2.new(0.05, 0, 0, yPos)
     frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
     frame.BackgroundTransparency = 0.2
@@ -500,7 +559,7 @@ local function createModeSelector(parent, label, options, current, callback, yPo
     corner.Parent = frame
 
     local labelText = Instance.new("TextLabel")
-    labelText.Size = UDim2.new(0.5, 0, 1, 0)
+    labelText.Size = UDim2.new(0.45, 0, 1, 0)
     labelText.Position = UDim2.new(0, 10, 0, 0)
     labelText.BackgroundTransparency = 1
     labelText.Font = Enum.Font.Gotham
@@ -511,8 +570,8 @@ local function createModeSelector(parent, label, options, current, callback, yPo
     labelText.Parent = frame
 
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.25, 0, 0.7, 0)
-    btn.Position = UDim2.new(0.7, 0, 0.15, 0)
+    btn.Size = UDim2.new(0.3, 0, 0.7, 0)
+    btn.Position = UDim2.new(0.65, 0, 0.15, 0)
     btn.BackgroundColor3 = Color3.fromRGB(60, 70, 90)
     btn.BackgroundTransparency = 0.1
     btn.Font = Enum.Font.Gotham
@@ -545,10 +604,9 @@ local function createGUI()
     ScreenGui.Name = "MoruyoHub"
     ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
-    -- Frame principal
     local MainFrame = Instance.new("Frame")
-    MainFrame.Size = UDim2.new(0, 360, 0, 520)
-    MainFrame.Position = UDim2.new(0.5, -180, 0.5, -260)
+    MainFrame.Size = UDim2.new(0, 380, 0, 550)
+    MainFrame.Position = UDim2.new(0.5, -190, 0.5, -275)
     MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 18)
     MainFrame.BackgroundTransparency = 0.05
     MainFrame.BorderSizePixel = 0
@@ -557,7 +615,6 @@ local function createGUI()
     MainCorner.CornerRadius = UDim.new(0, 12)
     MainCorner.Parent = MainFrame
 
-    -- Título (estilo Hawk)
     local Title = Instance.new("TextLabel")
     Title.Size = UDim2.new(1, 0, 0, 45)
     Title.Position = UDim2.new(0, 0, 0, 5)
@@ -609,45 +666,54 @@ local function createGUI()
 
     local Layout = Instance.new("UIListLayout")
     Layout.FillDirection = Enum.FillDirection.Vertical
-    Layout.Padding = UDim.new(0, 8)
+    Layout.Padding = UDim.new(0, 10)
     Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
     Layout.Parent = Scroll
 
     -- ============================================================
-    -- SEÇÃO COMBATE
+    -- SEÇÃO COMBATE (REORGANIZADA)
     -- ============================================================
-    local combatSection = createSection(Scroll, "⚔️ COMBATE", 0, 130)
-    createSwitch(combatSection, "Aimbot", toggleAimbot, 0.05, 0.25)
-    createModeSelector(combatSection, "Modo Aimbot", {"Always", "MouseButton"}, aimbotMode, setAimbotMode, 0.65)
-    createSwitch(combatSection, "Silent Aim", toggleSilentAim, 0.05, 0.85)
-    createSwitch(combatSection, "Trigger", toggleTrigger, 0.55, 0.85)
+    local combatSection = createSection(Scroll, "⚔️ COMBATE/COMBAT", 0, 145)
+    -- Linha 1: Aimbot (esquerda) + Silent Aim (direita)
+    createSwitch(combatSection, "Aimbot", toggleAimbot, 0.05, 0.2)
+    createSwitch(combatSection, "Silent Aim", toggleSilentAim, 0.53, 0.2)
+    -- Linha 2: Trigger (esquerda) + modo (direita) - mas modo é seletor, então colocamos abaixo
+    createSwitch(combatSection, "Trigger", toggleTrigger, 0.05, 0.55)
+    -- Seletor de modo do Aimbot
+    createModeSelector(combatSection, "Modo Aimbot", {"Always", "MouseButton"}, aimbotMode, setAimbotMode, 0.9)
+
+    -- ============================================================
+    -- SEÇÃO AIM PART (NOVO)
+    -- ============================================================
+    local aimPartSection = createSection(Scroll, "🎯 PARTE DO AIMBOT/AIMBOT", 0, 45)
+    createModeSelector(aimPartSection, "Parte", {"Head", "HumanoidRootPart", "Torso", "Leg"}, aimPart, setAimPart, 0.15)
 
     -- ============================================================
     -- SEÇÃO VISUAIS
     -- ============================================================
-    local visSection = createSection(Scroll, "👁️ VISUAIS", 0, 80)
+    local visSection = createSection(Scroll, "👁️ VISUAIS/VISUAL", 0, 80)
     createSwitch(visSection, "ESP", toggleESP, 0.05, 0.25)
-    createSwitch(visSection, "Full Bright", toggleFullBright, 0.55, 0.25)
+    createSwitch(visSection, "Full Bright", toggleFullBright, 0.53, 0.25)
 
     -- ============================================================
     -- SEÇÃO MOVIMENTO
     -- ============================================================
-    local moveSection = createSection(Scroll, "🏃 MOVIMENTO", 0, 160)
+    local moveSection = createSection(Scroll, "🏃 MOVIMENTO/MOVEMENT", 0, 160)
     createSwitch(moveSection, "Speed", toggleSpeed, 0.05, 0.2)
-    createSwitch(moveSection, "No Clip", toggleNoClip, 0.55, 0.2)
-    createSwitch(moveSection, "Infinite Jump", toggleInfiniteJump, 0.05, 0.6)
-    createSwitch(moveSection, "Fly", toggleFly, 0.55, 0.6)
+    createSwitch(moveSection, "No Clip", toggleNoClip, 0.53, 0.2)
+    createSwitch(moveSection, "Infinite Jump", toggleInfiniteJump, 0.05, 0.55)
+    createSwitch(moveSection, "Fly", toggleFly, 0.53, 0.55)
 
     -- ============================================================
     -- SEÇÃO CRÉDITOS
     -- ============================================================
-    local credSection = createSection(Scroll, "📋 CRÉDITOS", 0, 50)
+    local credSection = createSection(Scroll, "📋 CRÉDITOS/CREDITS", 0, 50)
     local creditLabel = Instance.new("TextLabel")
     creditLabel.Size = UDim2.new(1, 0, 0, 30)
     creditLabel.Position = UDim2.new(0, 10, 0, 10)
     creditLabel.BackgroundTransparency = 1
     creditLabel.Font = Enum.Font.Gotham
-    creditLabel.Text = "Moruyo Hub v10.0 | Desenvolvido para Hawk Hub"
+    creditLabel.Text = "Moruyo Hub v10.1 | Developers: TheRedBR009 (@TheRedBR009)"
     creditLabel.TextColor3 = Color3.fromRGB(150, 150, 180)
     creditLabel.TextSize = 12
     creditLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -659,8 +725,7 @@ end
 -- ============================================================
 -- 13. INICIALIZAÇÃO
 -- ============================================================
-log("Inicializando Moruyo Hub v10.0...")
+log("Inicializando Moruyo Hub v10.1...")
 createGUI()
 log("GUI carregada com sucesso!")
 log("Pressione F9 para abrir/fechar o console de logs.")
-log("Use as teclas de atalho nos botões ou clique neles para ativar/desativar.")
