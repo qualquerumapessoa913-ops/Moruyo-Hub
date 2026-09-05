@@ -1,0 +1,35 @@
+{
+    "Lua.diagnostics.globals": [
+        "game",
+        "workspace",
+        "Instance",
+        "Color3",
+        "UDim2",
+        "UDim",
+        "Enum",
+        "task",
+        "CFrame",
+        "Vector3",
+        "wait",
+        "print",
+        "warn",
+        "error",
+        "pcall",
+        "tostring",
+        "tonumber",
+        "math",
+        "ipairs",
+        "pairs",
+        "require",
+        "script"
+    ],
+    "Lua.workspace.checkThirdParty": false,
+    "Lua.workspace.ignoreDir": [
+        "node_modules"
+    ],
+    "Lua.diagnostics.disable": [
+        "undefined-global",
+        "undefined-field",
+        "need-check-nil"
+    ]
+}
