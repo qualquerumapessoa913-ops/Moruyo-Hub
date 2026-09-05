@@ -1,3 +1,7 @@
+-- ============================================================
+-- MORUYO HUB v9.0 – MAIN
+-- ============================================================
+
 local gameDetector = require(script.Parent.core.game_detector)
 local logger = require(script.Parent.core.logger)
 
